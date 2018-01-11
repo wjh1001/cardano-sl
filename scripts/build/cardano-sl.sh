@@ -253,7 +253,7 @@ fi
 
 if [[ $ram == true ]];
   then ghc_opts="$ghc_opts +RTS -A2G -n4m -RTS"
-  else ghc_opts="$ghc_opts +RTS -A256m -n2m -RTS"
+  else ghc_opts="$ghc_opts +RTS -A256m -M4G -n2m -RTS -fprint-potential-instances"
 fi
 
 xperl='$|++; s/(.*) Compiling\s([^\s]+)\s+\(\s+([^\/]+).*/\1 \2/p'
