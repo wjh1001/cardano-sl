@@ -79,6 +79,8 @@ import           Servant.API                 ((:<|>), (:>), Capture, Delete, Get
 import           Servant.API.ContentTypes    (OctetStream)
 import           Servant.Server              (HasServer (..))
 import           Servant.Swagger.UI          (SwaggerSchemaUI)
+import           Servant.Client              (ClientM, Client, HasClient (..))
+
 import           Universum
 
 -------
@@ -131,6 +133,16 @@ instance ( HasServer (Verb mt st ct $ ApiModifiedRes WalletVerbTag a) ctx
         \(paramsInfo, handler) ->
             handler & serverHandlerL' %~ modifyApiResult (Proxy @WalletVerbTag)
                     & applyLoggingToHandler (Proxy @config) (Proxy @mt) . (paramsInfo, )
+
+
+
+--instance (HasClient v) => HasClient (VerbMod mod v) where
+--    type Client (VerbMod mod v) = Client v
+--    clientWithRoute _ = clientWithRoute (Proxy @v)
+
+instance (HasClient v) => HasClient (WalletVerb v) where
+    type Client (WalletVerb v) = Client v
+    clientWithRoute _ = clientWithRoute (Proxy @v)
 
 -- | Specifes servant logging config.
 data WalletLoggingConfig

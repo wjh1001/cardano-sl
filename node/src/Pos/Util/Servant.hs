@@ -55,9 +55,10 @@ import           Formatting              (bprint, build, builder, formatToString
 import           Serokell.Util           (listJsonIndent)
 import           Serokell.Util.ANSI      (Color (..))
 import           Servant.API             ((:<|>) (..), (:>), Capture, QueryParam,
-                                          ReflectMethod (..), ReqBody, Verb)
+                                          ReflectMethod (..), ReqBody, ToHttpApiData (..), Verb)
 import           Servant.Server          (Handler (..), HasServer (..), ServantErr (..),
                                           Server)
+import           Servant.Client          (Client, HasClient (..))
 import qualified Servant.Server.Internal as SI
 import           System.Wlog             (LoggerName, LoggerNameBox, usingLoggerName)
 
@@ -202,6 +203,51 @@ instance ( HasServer (apiType a :> res) ctx
             sformat ("(in "%string%") "%stext)
                 (apiArgName $ Proxy @(apiType a))
                 err
+
+
+instance HasClient (apiType a :> res) => HasClient (CDecodeApiArg apiType a :> res) where
+    type Client (CDecodeApiArg apiType a :> res) = Client (apiType a :> res)
+    clientWithRoute _ req = clientWithRoute (Proxy @(apiType a :> res)) req
+
+instance HasClient api => HasClient (VerbMod mod api) where
+    type Client (VerbMod mod api) = Client api
+    clientWithRoute _ req = clientWithRoute (Proxy @api) req
+
+{-
+0.10
+clientWithRoute ::            Proxy api -> Request -> Client   api
+
+0.12
+clientWithRoute :: Proxy m -> Proxy api -> Request -> Client m api
+-}
+{-
+instance HasClient m (CDecodeApiArg apiType a) where
+    type Client m (CDecodeApiArg apiType a) = Client m (apiType a)
+    clientWithRoute pm _ req = clientWithRoute pm (Proxy @(apiType a)) req
+-}
+{-
+instance ( KnownSymbol sym
+         , ToHttpApiData a
+         , HasClient api
+         ) => HasClient (QueryParam sym a :> api) where
+
+    type Client (QueryParam sym a :> api) =
+        Maybe a -> Client api
+
+    -- if mparam = Nothing, we don't add it to the query string
+    clientWithRoute Proxy req mparam =
+        clientWithRoute (Proxy :: Proxy api)
+                        (maybe req
+                               (flip (appendToQueryString pname) req . Just)
+                               mparamText
+                        )
+
+      where
+        pname  = cs pname'
+        pname' = symbolVal (Proxy :: Proxy sym)
+        mparamText = fmap toQueryParam mparam
+-}
+
 
 -------------------------------------------------------------------------
 -- Mapping API arguments: defaults
