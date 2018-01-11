@@ -204,6 +204,46 @@ executable cardano-node
                       ScopedTypeVariables
                       UndecidableInstances
 
+test-suite wallet-unit-tests
+  ghc-options:        -Wall
+  type:               exitcode-stdio-1.0
+  main-is:            WalletUnitTest.hs
+  other-modules:      UTxO.DSL
+                      UTxO.Interpreter
+                      UTxO.Translate
+  default-language:   Haskell2010
+  default-extensions: ConstraintKinds
+                      FlexibleContexts
+                      FlexibleInstances
+                      GADTs
+                      InstanceSigs
+                      NoImplicitPrelude
+                      OverloadedStrings
+                      RankNTypes
+                      RecordWildCards
+                      TypeFamilies
+  other-extensions:   GeneralizedNewtypeDeriving
+  hs-source-dirs:     server test/unit
+  build-depends:      base
+
+  if !os(windows)
+    build-depends:    containers
+                    , cardano-sl
+                    , cardano-sl-block
+                    , cardano-sl-client
+                    , cardano-sl-core
+                    , cardano-sl-crypto
+                    , cardano-sl-ssc
+                    , cardano-sl-txp
+                    , cardano-sl-update
+                    , data-default
+                    , formatting
+                    , mtl
+                    , serokell-util
+                    , text-format
+                    , universum
+                    , unordered-containers
+
 test-suite wallet-new-specs
   ghc-options:      -Wall
   type:             exitcode-stdio-1.0
