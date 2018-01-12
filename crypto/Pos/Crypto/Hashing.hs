@@ -25,6 +25,7 @@ module Pos.Crypto.Hashing
        , shortHashF
        , hash
        , hashRaw
+       , hashRaw'
        , unsafeHash
        , unsafeCheatingHashCoerce
 
@@ -41,6 +42,7 @@ import           Control.Lens (makeLensesFor)
 import           Crypto.Hash (Blake2b_256, Digest, HashAlgorithm, hashDigestSize)
 import qualified Crypto.Hash as Hash
 import qualified Data.ByteArray as ByteArray
+import qualified Data.ByteString.Lazy as LBS
 import           Data.Coerce (coerce)
 import           Data.Hashable (Hashable (hashWithSalt), hashPtrWithSalt)
 import           Data.Reflection (reifyNat)
@@ -141,7 +143,7 @@ abstractHash = unsafeAbstractHash
 unsafeAbstractHash
     :: (HashAlgorithm algo, Bi a)
     => a -> AbstractHash algo b
-unsafeAbstractHash = AbstractHash . Hash.hash . Bi.serialize'
+unsafeAbstractHash = AbstractHash . Hash.hashlazy . Bi.serializeWith 32 1024
 
 -- | Type alias for commonly used hash
 type Hash = AbstractHash Blake2b_256
@@ -151,8 +153,11 @@ hash :: Bi a => a -> Hash a
 hash = unsafeHash
 
 -- | Raw constructor application.
-hashRaw :: ByteString -> Hash Raw
-hashRaw = AbstractHash . Hash.hash
+hashRaw :: LBS.ByteString -> Hash Raw
+hashRaw = AbstractHash . Hash.hashlazy
+
+hashRaw' :: ByteString -> Hash Raw
+hashRaw' = AbstractHash . Hash.hash
 
 -- | Encode thing as 'Bi' data and then wrap into constructor.
 unsafeHash :: Bi a => a -> Hash b
