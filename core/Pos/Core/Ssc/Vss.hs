@@ -94,10 +94,6 @@ mkVssCertificatesMap
     :: MonadFail m
     => [VssCertificate] -> m VssCertificatesMap
 mkVssCertificatesMap certs = do
-    unless (allDistinct (map vcSigningKey certs)) $
-        fail "mkVssCertificatesMap: two certs have the same signing key"
-    unless (allDistinct (map vcVssKey certs)) $
-        fail "mkVssCertificatesMap: two certs have the same VSS key"
     pure $ UnsafeVssCertificatesMap (HM.fromList (map toCertPair certs))
 
 -- | A convenient constructor of 'VssCertificatesMap' that throws away

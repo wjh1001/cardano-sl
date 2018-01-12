@@ -17,7 +17,7 @@ import           Pos.Core.Ssc.Types (Commitment (..), CommitmentsMap (..), Openi
                                      OpeningsMap, SharesMap, SignedCommitment, SscPayload (..),
                                      SscProof (..), VssCertificatesHash, mkCommitmentsMap)
 import           Pos.Core.Ssc.Vss (VssCertificate (..), VssCertificatesMap (..),
-                                   mkVssCertificatesMap, recreateVssCertificate)
+                                   mkVssCertificatesMap)
 import           Pos.Crypto (Hash, PublicKey)
 
 instance Bi Commitment where
@@ -45,9 +45,7 @@ instance HasConfiguration => Bi VssCertificate where
         epo <- decode
         sig <- decode
         sky <- decode
-        case recreateVssCertificate key epo sig sky of
-            Left e  -> fail e
-            Right v -> pure v
+        pure $ UnsafeVssCertificate key epo sig sky
 
 instance HasConfiguration => Bi VssCertificatesMap where
     encode = encodeVssCertificates

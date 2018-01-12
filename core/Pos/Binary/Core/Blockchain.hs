@@ -10,7 +10,6 @@ import           Pos.Binary.Class (Bi (..), encodeListLen, enforceSize)
 import           Pos.Binary.Core.Common ()
 import qualified Pos.Core.Block.Blockchain as T
 import           Pos.Crypto.Configuration (HasCryptoConfiguration, getProtocolMagic, protocolMagic)
-import           Pos.Util.Util (toCborError)
 
 instance ( Typeable b
          , Bi (T.BHeaderHash b)
@@ -36,7 +35,7 @@ instance ( Typeable b
         _gbhBodyProof <- ({-# SCC "decode_header_body_proof" #-} decode)
         _gbhConsensus <- ({-# SCC "decode_header_consensus" #-} decode)
         _gbhExtra     <- ({-# SCC "decode_header_extra" #-} decode)
-        toCborError $ T.recreateGenericHeader _gbhPrevBlock _gbhBodyProof _gbhConsensus _gbhExtra
+        pure T.UnsafeGenericBlockHeader {..}
 
 instance ( Typeable b
          , Bi (T.BHeaderHash b)
@@ -58,4 +57,4 @@ instance ( Typeable b
         _gbHeader <- ({-# SCC "decode_block_header" #-} decode)
         _gbBody   <- ({-# SCC "decode_block_body" #-} decode)
         _gbExtra  <- ({-# SCC "decode_block_extra" #-} decode)
-        toCborError $ T.recreateGenericBlock _gbHeader _gbBody _gbExtra
+        pure T.UnsafeGenericBlock {..}

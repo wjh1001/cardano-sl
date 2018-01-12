@@ -17,10 +17,7 @@ instance Bi (A.Attributes ()) where
 
 instance Bi T.CoinPortion where
     encode = encode . T.getCoinPortion
-    decode =
-        T.mkCoinPortion <$> (decode @Word64) >>= \case
-            Left err          -> fail err
-            Right coinPortion -> return coinPortion
+    decode = T.CoinPortion <$> decode
 
 instance Bi T.BlockCount where
     encode = encode . T.getBlockCount
