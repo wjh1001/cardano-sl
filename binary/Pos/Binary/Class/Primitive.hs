@@ -21,6 +21,7 @@ module Pos.Binary.Class.Primitive
        , biSize
        -- * Backward-compatible functions
        , decodeFull
+       , decodeFull'
        -- * Low-level, fine-grained functions
        , deserializeOrFail
        , deserializeOrFail'
@@ -98,7 +99,7 @@ unsafeDeserialize' = unsafeDeserialize . BSL.fromStrict
 -- us to cheat, as not all the monads have a sensible `fail` implementation.
 -- Expect the whole input to be consumed.
 deserialize :: Bi a => BSL.ByteString -> D.Decoder s a
-deserialize = either (fail . toString) return . decodeFull . BSL.toStrict
+deserialize = either (fail . toString) return . decodeFull
 
 -- | Strict version of `deserialize`.
 deserialize' :: Bi a => BS.ByteString -> D.Decoder s a
@@ -108,8 +109,8 @@ deserialize' = deserialize . BSL.fromStrict
 -- failing if there are leftovers. In a nutshell, the `full` here implies
 -- the contract of this function is that what you feed as input needs to
 -- be consumed entirely.
-decodeFull :: forall a. Bi a => BS.ByteString -> Either Text a
-decodeFull bs0 = case deserializeOrFail' bs0 of
+decodeFull :: forall a. Bi a => BSL.ByteString -> Either Text a
+decodeFull bs0 = case deserializeOrFail bs0 of
   Right (x, leftover) -> case BS.null leftover of
       True  -> pure x
       False ->
@@ -118,6 +119,9 @@ decodeFull bs0 = case deserializeOrFail' bs0 of
           in Left $ fromString msg
   Left  (e, _) ->
       Left $ fromString $ "decodeFull failed for " <> label (Proxy @a) <> ": " <> show e
+
+decodeFull' :: forall a. Bi a => BS.ByteString -> Either Text a
+decodeFull' = decodeFull . BSL.fromStrict
 
 -- | Deserialize a Haskell value from the external binary representation,
 -- returning either (leftover, value) or a (leftover, @'DeserialiseFailure'@).
@@ -227,7 +231,7 @@ decodeCborDataItemTag = do
 decodeKnownCborDataItem :: Bi a => D.Decoder s a
 decodeKnownCborDataItem = do
     bs <- decodeUnknownCborDataItem
-    case decodeFull bs of
+    case decodeFull' bs of
         Left e  -> fail (toString e)
         Right v -> pure v
 
@@ -260,6 +264,6 @@ decodeCrcProtected = do
         actualCrc = crc32 body
     let crcErrorFmt = "decodeCrcProtected, expected CRC " % shown % " was not the computed one, which was " % shown
     when (actualCrc /= expectedCrc) $ fail (formatToString crcErrorFmt expectedCrc actualCrc)
-    case decodeFull body of
+    case decodeFull' body of
       Left e  -> fail (toString e)
       Right x -> pure x
