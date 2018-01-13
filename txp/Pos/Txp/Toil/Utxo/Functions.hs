@@ -207,7 +207,7 @@ verifyKnownInputs VTxContext {..} resolvedInputs TxAux {..} = do
             when (valVer /= redVer) $
                 throwError $ WitnessScriptVerMismatch valVer redVer
             when (valVer > vtcAdoptedScriptVersion) $
-                throwError $ WitnessScriptVerMismatch valVer vtcAdoptedScriptVersion
+                throwError $ WitnessAdoptedScriptVerMismatch valVer vtcAdoptedScriptVersion
             when (vtcVerifyAllIsKnown && not (isKnownScriptVersion valVer)) $
                 throwError $ WitnessUnknownScriptVer valVer
             over _Left WitnessScriptError $

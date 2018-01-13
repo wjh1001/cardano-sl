@@ -140,6 +140,8 @@ data WitnessVerFailure
     = WitnessWrongSignature
     -- | Validator and redeemer script versions don't match
     | WitnessScriptVerMismatch ScriptVersion ScriptVersion
+    -- | Validator script version is greater than adopted script version
+    | WitnessAdoptedScriptVerMismatch ScriptVersion ScriptVersion
     -- | Don't know how to handle script version
     | WitnessUnknownScriptVer ScriptVersion
     -- | Plutus error (e.g. exhausted execution steps, redeemer script
@@ -155,6 +157,9 @@ instance Buildable WitnessVerFailure where
     build (WitnessScriptVerMismatch val red) =
         bprint ("validator and redeemer script versions don't match: "%
                 "validator version = "%build%", script version = "%build) val red
+    build (WitnessAdoptedScriptVerMismatch val ado) =
+        bprint ("validator script version is greater than adopted script version: "%
+                "validator version = "%build%", adopted script version = "%build) val ado
     build (WitnessUnknownScriptVer ver) =
         bprint ("unknown/unhandleable script version: "%build) ver
     build (WitnessScriptError err) =
