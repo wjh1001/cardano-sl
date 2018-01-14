@@ -1,47 +1,46 @@
 {-# LANGUAGE ConstraintKinds     #-}
 {-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE NamedFieldPuns      #-}
+{-# LANGUAGE NoImplicitPrelude   #-}
 {-# LANGUAGE RankNTypes          #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 -- | This module implements functionality of NTP client.
 
 module NTP.Client
-    ( startNtpClient
+    ( NtpMonad
+    , withNtpClient
     , NtpClientSettings (..)
     , NtpStopButton (..)
     , ntpSingleShot
     , hoistNtpClientSettings
     ) where
 
-import           Control.Concurrent.STM (atomically, modifyTVar')
-import           Control.Concurrent.STM.TVar (TVar, newTVarIO, readTVar, readTVarIO, writeTVar)
-import           Control.Exception.Safe (Exception, MonadMask, bracketOnError, catchAny, handleAny,
-                                         throwM)
+import           Universum hiding (log)
+
+import           Control.Concurrent.STM (modifyTVar')
+import           Control.Concurrent.STM.TVar (TVar, readTVar, writeTVar)
+import           Control.Exception.Safe (Exception, MonadMask, bracketOnError, catchAny, handleAny)
 import           Control.Lens ((%=), (.=), _Just)
-import           Control.Monad (forM_, forever, unless, void, when)
+import           Control.Monad (forever)
 import           Control.Monad.State (gets)
-import           Control.Monad.Trans (MonadIO (..))
 import           Control.Monad.Trans.Control (MonadBaseControl)
 import           Data.Binary (decodeOrFail, encode)
 import qualified Data.ByteString.Lazy as LBS
 import           Data.Default (Default (..))
-import           Data.List (sortOn)
+import           Data.List (sortOn, (!!))
 import           Data.Maybe (catMaybes, isNothing)
-import           Data.Monoid ((<>))
-import           Data.Text (Text)
 import           Data.Time.Units (Microsecond, Second, toMicroseconds)
 import           Data.Typeable (Typeable)
 import           Formatting (sformat, shown, (%))
 import           Network.Socket (AddrInfo, SockAddr (..), Socket, addrAddress, addrFamily, close)
 import           Network.Socket.ByteString (recvFrom, sendTo)
-import           Prelude hiding (log)
 import           Serokell.Util.Concurrent (modifyTVarS, threadDelay)
 import           System.Wlog (LoggerName, Severity (..), WithLogger, logMessage, modifyLoggerName)
-import           Universum (whenJust)
 
 import           Mockable.Class (Mockable)
-import           Mockable.Concurrent (Delay, Fork, delay, fork)
+import           Mockable.Concurrent (Async, Concurrently, concurrently, forConcurrently, race,
+                                      withAsync)
 import           NTP.Packet (NtpPacket (..), evalClockOffset, mkCliNtpPacket, ntpPacketSize)
 import           NTP.Util (createAndBindSock, resolveNtpHost, selectIPv4, selectIPv6,
                            udpLocalAddresses, withSocketsDoLifted)
@@ -110,7 +109,8 @@ type NtpMonad m =
     , MonadBaseControl IO m
     , MonadMask m
     , WithLogger m
-    , Mockable Fork m
+    , Mockable Concurrently m
+    , Mockable Async m
     )
 
 log' :: NtpMonad m => NtpClientSettings m -> Severity -> Text -> m ()
@@ -152,7 +152,7 @@ doSend addr cli = do
     sendDo a@(SockAddrInet6 _ _ _ _) (IPv6Sock sock) = sendTo' sock a
     sendDo a@(SockAddrInet6 _ _ _ _) (BothSock _ sock)  = sendTo' sock a
     sendDo a sks                                           =
-        error $ "SockAddr is " ++ show a ++ ", but sockets: " ++ show sks
+        error $ "SockAddr is " <> show a <> ", but sockets: " <> show sks
     sendTo' sock = flip (sendTo sock)
 
     -- just log; socket closure is handled by receiver
@@ -166,14 +166,12 @@ startSend addrs cli = do
     closed <- liftIO $ readTVarIO (ncClosed cli)
     unless closed $ do
         log cli Debug "Sending requests"
-        liftIO . atomically . modifyTVarS (ncState cli) $ id .= Just []
-        forM_ addrs $
-            \addr -> fork $ doSend addr cli
-        liftIO $ threadDelay timeout
+        liftIO . atomically . modifyTVarS (ncState cli) $ identity .= Just []
+        () <$ threadDelay timeout `race` forConcurrently addrs (flip doSend cli)
 
         log cli Debug "Collecting responses"
         handleCollectedResponses cli
-        liftIO . atomically . modifyTVarS (ncState cli) $ id .= Nothing
+        liftIO . atomically . modifyTVarS (ncState cli) $ identity .= Nothing
         liftIO $ threadDelay (poll - timeout)
 
         startSend addrs cli
@@ -239,9 +237,8 @@ startReceive :: NtpMonad m => NtpClient m -> m ()
 startReceive cli = do
     sockets <- liftIO . atomically . readTVar $ ncSockets cli
     case sockets of
-        BothSock sIPv4 sIPv6 -> do
-            void $ fork $ runDoReceive True sIPv4
-            runDoReceive False sIPv6
+        BothSock sIPv4 sIPv6 ->
+            () <$ runDoReceive True sIPv4 `concurrently` runDoReceive False sIPv6
         IPv4Sock sIPv4 -> runDoReceive True sIPv4
         IPv6Sock sIPv6 -> runDoReceive False sIPv6
   where
@@ -280,22 +277,19 @@ stopNtpClient cli = do
     -- unblock receiving from socket in case no one replies
     forM_ sockets $ \s -> liftIO (close s) `catchAny` (const $ pure ())
 
-startNtpClient :: NtpMonad m => NtpClientSettings m -> m (NtpStopButton m)
-startNtpClient settings =
+withNtpClient :: NtpMonad m => NtpClientSettings m -> (NtpStopButton m -> m a) -> m a
+withNtpClient settings callback =
     withSocketsDoLifted $
     bracketOnError (mkSockets settings) closeSockets $ \sock -> do
         cli <- mkNtpClient settings sock
 
         addrs <- catMaybes <$> mapM (resolveHost cli $ socketsToBoolDescr sock)
                                     (ntpServers settings)
-        if null addrs then
-            throwM NoHostResolved
-        else do
-            void . fork . withSocketsDoLifted $ startReceive cli
-            void . fork . withSocketsDoLifted $ startSend addrs cli
-            log cli Info "Launched"
-
-        return $ NtpStopButton $ stopNtpClient cli
+        when (null addrs) $ throwM NoHostResolved
+        withAsync (withSocketsDoLifted $ startReceive cli) $ \_ ->
+            withAsync (withSocketsDoLifted $ startSend addrs cli) $ \_ -> do
+                log cli Info "Launched NTP client"
+                callback (NtpStopButton $ stopNtpClient cli)
   where
     closeSockets sockets = forM_ (socketsToList sockets) (liftIO . close)
     resolveHost cli sockDescr host = do
@@ -311,12 +305,12 @@ startNtpClient settings =
 -- | Start client, wait for a while so that most likely it ticks once
 -- and stop it.
 ntpSingleShot
-    :: (Mockable Delay m, NtpMonad m)
+    :: (NtpMonad m)
     => NtpClientSettings m -> m ()
-ntpSingleShot settings = do
-    stopButton <- startNtpClient settings
-    delay (ntpResponseTimeout settings)
-    pressNtpStopButton stopButton
+ntpSingleShot settings =
+    withNtpClient settings $ \stopButton -> do
+        threadDelay (ntpResponseTimeout settings)
+        pressNtpStopButton stopButton
 
 -- Store created sockets.
 -- If system supports IPv6 and IPv4 we create socket for IPv4 and IPv6.
