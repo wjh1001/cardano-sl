@@ -29,7 +29,8 @@ import           Pos.Data.Attributes (mkAttributes)
 import           Pos.Script (PlutusError (..), Script)
 import           Pos.Script.Examples (alwaysSuccessValidator, badIntRedeemer, goodIntRedeemer,
                                       goodIntRedeemerWithBlah, goodStdlibRedeemer, idValidator,
-                                      intValidator, intValidatorWithBlah, multisigRedeemer,
+                                      intValidator, intValidatorWithBlah,
+                                      intValidatorWithVersionOne, multisigRedeemer,
                                       multisigValidator, shaStressRedeemer, sigStressRedeemer,
                                       stdlibValidator)
 import           Pos.Txp (MonadUtxoRead (utxoGet), ToilVerFailure (..), Utxo, VTxContext (..),
@@ -269,6 +270,13 @@ scriptTxSpec = describe "script transactions" $ do
                 alwaysSuccessValidator
                 (const witness)
 
+        it "validator script provided in witness is greater \
+           \than adopted script version" $ do
+            let witness = ScriptWitness intValidatorWithVersionOne goodIntRedeemer
+            txShouldFailWithInvalidWitness $ checkScriptTx
+                alwaysSuccessValidator
+                (const witness)
+
         it "validator script isn't a proper validator, \
            \redeemer script isn't a proper redeemer" $ do
             let res = checkScriptTx
@@ -458,4 +466,12 @@ txShouldFailWithPlutus res err = case res of
               " but got: " <> show tiwReason
     other -> expectationFailure $
         "expected: Left ...: " <> show (WitnessScriptError err) <> "\n" <>
+        " but got: " <> show other
+
+-- | Transaction should fail with a 'ToilInvalidWitness' error.
+txShouldFailWithInvalidWitness :: Either ToilVerFailure () -> Expectation
+txShouldFailWithInvalidWitness = \case
+    Left ToilInvalidWitness{} -> pass
+    other -> expectationFailure $
+        "expected: Left ToilInvalidWitness{..}\n" <>
         " but got: " <> show other

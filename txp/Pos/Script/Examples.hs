@@ -9,6 +9,7 @@ module Pos.Script.Examples
 
          -- * Int
        , intValidator
+       , intValidatorWithVersionOne
        , goodIntRedeemer
        , badIntRedeemer
 
@@ -39,7 +40,7 @@ import           Pos.Binary.Core ()
 import           Pos.Core (HasConfiguration, StakeholderId, TxSigData)
 import           Pos.Crypto (SafeSigner, SignTag (SignTx), deterministicKeyGen, fullPublicKeyHexF,
                              fullSignatureHexF, hashHexF, safeSign, safeToPublic, signRaw, signTag)
-import           Pos.Script (Script, parseRedeemer, parseValidator)
+import           Pos.Script (Script, parseRedeemer, parseValidator, parseValidatorWithVersionOne)
 
 fromE :: Either String Script -> Script
 fromE = either (error . toText) identity
@@ -72,6 +73,16 @@ idValidator = fromE $ parseValidator [text|
 
 intValidator :: Script
 intValidator = fromE $ parseValidator [text|
+    data Foo = { Foo }
+
+    validator : Int -> Comp Foo {
+        validator x = case !equalsInt x 1 of {
+            True  -> success Foo ;
+            False -> failure } }
+    |]
+
+intValidatorWithVersionOne :: Script
+intValidatorWithVersionOne = fromE $ parseValidatorWithVersionOne [text|
     data Foo = { Foo }
 
     validator : Int -> Comp Foo {

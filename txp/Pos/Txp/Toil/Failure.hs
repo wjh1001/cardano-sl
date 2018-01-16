@@ -47,7 +47,6 @@ data ToilVerFailure
                              , twdmInput       :: !TxIn
                              , twdmSpentOutput :: !TxOut
                              , twdmWitness     :: !TxInWitness }
-
     -- | The witness could in theory justify spending an output, but it
     -- simply isn't valid (the signature doesn't pass validation, the
     -- validator–redeemer pair produces 'False' when executed, etc).
