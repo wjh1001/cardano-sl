@@ -54,7 +54,7 @@ import           System.FilePath (takeDirectory, takeFileName)
 import           System.IO (hClose, openBinaryTempFile)
 import           System.Wlog (WithLogger)
 
-import           Pos.Binary.Class (Bi (..), decodeFull, encodeListLen, enforceSize, serialize')
+import           Pos.Binary.Class (Bi (..), decodeFull', encodeListLen, enforceSize, serialize')
 import           Pos.Binary.Class (Cons (..), Field (..), deriveSimpleBi)
 import           Pos.Binary.Crypto ()
 import           Pos.Core (Address, accountGenesisIndex, addressF, makeRootPubKeyAddress,
@@ -243,7 +243,7 @@ readUserSecret path = do
 #endif
     takeReadLock path $ do
         content <- either (throwM . UserSecretDecodingError . toText) pure .
-                   decodeFull =<< BS.readFile path
+                   decodeFull' =<< BS.readFile path
         pure $ content & usPath .~ path
 
 -- | Reads user secret from the given file.
@@ -252,7 +252,7 @@ peekUserSecret :: (MonadIO m, WithLogger m) => FilePath -> m UserSecret
 peekUserSecret path = do
     initializeUserSecret path
     takeReadLock path $ do
-        econtent <- decodeFull <$> BS.readFile path
+        econtent <- decodeFull' <$> BS.readFile path
         pure $ either (const def) identity econtent & usPath .~ path
 
 -- | Read user secret putting an exclusive lock on it. To unlock, use
@@ -262,7 +262,7 @@ takeUserSecret path = do
     initializeUserSecret path
     liftIO $ do
         l <- lockFile (lockFilePath path) Exclusive
-        econtent <- decodeFull <$> BS.readFile path
+        econtent <- decodeFull' <$> BS.readFile path
         pure $ either (const def) identity econtent
             & usPath .~ path
             & usLock .~ Just l
