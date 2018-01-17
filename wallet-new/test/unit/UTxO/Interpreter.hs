@@ -43,7 +43,11 @@ data Addr =
     | AddrPoor Int Int
 
 {-------------------------------------------------------------------------------
-  Simplified API for block construction
+  Translate the DSL UTxO definitions to Cardano types
+
+  NOTE: Delegation in Cardano is described in the document
+  "Delegation and Stake Locking in Cardano SL"
+  <cardano-sl-articles/delegation/pdf/article.pdf>.
 -------------------------------------------------------------------------------}
 
 class Interpret a where
