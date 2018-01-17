@@ -14,6 +14,7 @@ module UTxO.Translate (
   , generatedSecrets
   ) where
 
+
 import Universum hiding (lift)
 import Control.Exception (throw)
 import Control.Monad.Except (MonadError)
