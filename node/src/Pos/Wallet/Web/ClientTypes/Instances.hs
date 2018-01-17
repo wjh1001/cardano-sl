@@ -16,12 +16,13 @@ import           Formatting                           (bprint, build, builder, i
                                                        sformat, shown, string, (%))
 import           Serokell.Util                        (listJsonIndent)
 import qualified Serokell.Util.Base16                 as Base16
-import           Servant.API                          (FromHttpApiData (..), ToHttpApiData (..))
+import           Servant.API                          (FromHttpApiData (..),
+                                                       ToHttpApiData (..))
 import           Servant.Multipart                    (FromMultipart (..), lookupFile,
                                                        lookupInput)
 
-import           Pos.Core                             (Address, Coin, decodeTextAddress,
-                                                       mkCoin)
+import           Pos.Core                             (Address, Coin, coinToInteger,
+                                                       decodeTextAddress, mkCoin)
 import           Pos.Crypto                           (PassPhrase, decodeHash,
                                                        passphraseLength)
 import           Pos.Txp.Core.Types                   (TxId)
@@ -33,9 +34,9 @@ import           Pos.Util.Servant                     (FromCType (..),
 import           Pos.Wallet.Web.ClientTypes.Functions (addressToCId, cIdToAddress,
                                                        mkCCoin, mkCTxId,
                                                        ptxCondToCPtxCond, txIdToCTxId)
-import           Pos.Wallet.Web.ClientTypes.Types     (AccountId (..), Addr, ApiVersion (..),
-                                                       CAccount (..), CAccountId (..),
-                                                       CAccountInit (..),
+import           Pos.Wallet.Web.ClientTypes.Types     (AccountId (..), Addr,
+                                                       ApiVersion (..), CAccount (..),
+                                                       CAccountId (..), CAccountInit (..),
                                                        CAccountMeta (..), CAddress (..),
                                                        CCoin (..),
                                                        CElectronCrashReport (..),
@@ -72,6 +73,12 @@ instance ToHttpApiData ScrollOffset where
 
 instance ToHttpApiData ScrollLimit where
     toQueryParam (ScrollLimit num) = toText (show num :: Text)
+
+instance ToHttpApiData CPassPhrase where
+    toQueryParam (CPassPhrase text) = text
+
+instance ToHttpApiData Coin where
+    toQueryParam = pretty . coinToInteger
 
 ----------------------------------------------------------------------------
 -- Buildable

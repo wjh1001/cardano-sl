@@ -55,10 +55,10 @@ import           Formatting              (bprint, build, builder, formatToString
 import           Serokell.Util           (listJsonIndent)
 import           Serokell.Util.ANSI      (Color (..))
 import           Servant.API             ((:<|>) (..), (:>), Capture, QueryParam,
-                                          ReflectMethod (..), ReqBody, ToHttpApiData (..), Verb)
+                                          ReflectMethod (..), ReqBody, Verb)
+import           Servant.Client          (Client, HasClient (..))
 import           Servant.Server          (Handler (..), HasServer (..), ServantErr (..),
                                           Server)
-import           Servant.Client          (Client, HasClient (..))
 import qualified Servant.Server.Internal as SI
 import           System.Wlog             (LoggerName, LoggerNameBox, usingLoggerName)
 
@@ -207,6 +207,15 @@ instance ( HasServer (apiType a :> res) ctx
 
 instance HasClient (apiType a :> res) => HasClient (CDecodeApiArg apiType a :> res) where
     type Client (CDecodeApiArg apiType a :> res) = Client (apiType a :> res)
+    clientWithRoute _ req = clientWithRoute (Proxy @(apiType a :> res)) req
+
+type family MaybeArg a where
+   MaybeArg (a -> b) = Maybe a -> b
+
+-- | For convenience, optional fields with default value are optional on client.
+instance HasClient (apiType a :> res) =>
+         HasClient (WithDefaultApiArg apiType a :> res) where
+    type Client (WithDefaultApiArg apiType a :> res) = Client (apiType a :> res)
     clientWithRoute _ req = clientWithRoute (Proxy @(apiType a :> res)) req
 
 instance HasClient api => HasClient (VerbMod mod api) where

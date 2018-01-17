@@ -6,12 +6,14 @@ module Client.Pos.Wallet.Web.Api
 
 import           Universum
 
-import           Pos.Wallet.Web.Api         (GetHistory) -- , GetWallet, NewPayment)
-import           Pos.Wallet.Web.ClientTypes (AccountId (..), CAccountId (..),
-                                             Addr, CId (..), CTx, ScrollLimit,
-                                             ScrollOffset, Wal)
+import           Pos.Client.Txp.Util        (InputSelectionPolicy)
+import           Pos.Core.Types             (Coin)
 import           Pos.Util.Servant           (VerbMod)
-import           Servant.Client             (ClientM, Client, HasClient (..), client)
+import           Pos.Wallet.Web.Api         (GetHistory, GetWallets, NewPayment)
+import           Pos.Wallet.Web.ClientTypes (AccountId (..), Addr, CAccountId (..), CCoin,
+                                             CId (..), CPassPhrase, CTx, CWallet,
+                                             ScrollLimit, ScrollOffset, Wal)
+import           Servant.Client             (Client, ClientM, HasClient (..), client)
 
 
 
@@ -35,29 +37,29 @@ import           Servant.Client             (ClientM, Client, HasClient (..), cl
 --    :> DReqBody '[JSON] (Maybe InputSelectionPolicy)
 --    :> WRes Post CTx
 
---newPayment
---    :: Send
---    Actions ClientM
---    -> PassPhrase
---    -> AccountId
---    -> CId Addr
---    -> Coin
---    -> InputSelectionPolicy
---    -> ClientM CTx
---newPayment _ _ _ _ _ _ = error ""
+newPayment
+   :: Maybe CPassPhrase
+   -> CAccountId
+   -> CId Addr
+   -> Coin
+   -> Maybe InputSelectionPolicy
+   -> ClientM CTx
+newPayment = client (Proxy @NewPayment)
 
 --getHistoryEndpoint :: Proxy GetHistory
 --getHistoryEndpoint = Proxy
 
---getHistory
---    :: Maybe (CId Wal)
---    -> Maybe CAccountId
---    -> Maybe (CId Addr)
---    -> Maybe ScrollOffset
---    -> Maybe ScrollLimit
---    -> ClientM ([CTx], Word)
+getHistory
+   :: Maybe (CId Wal)
+   -> Maybe CAccountId
+   -> Maybe (CId Addr)
+   -> Maybe ScrollOffset
+   -> Maybe ScrollLimit
+   -> ClientM ([CTx], Word)
 getHistory = client (Proxy @GetHistory)
 
+getWallets :: ClientM [CWallet]
+getWallets = client (Proxy @GetWallets)
 
 -- client :: HasClient api => Proxy api -> Client api
 

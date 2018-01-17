@@ -77,31 +77,32 @@ import           Servant.API                 ((:<|>), (:>), Capture, Delete, Get
                                               Post, Put, QueryParam, ReflectMethod (..),
                                               ReqBody, Verb)
 import           Servant.API.ContentTypes    (OctetStream)
+import           Servant.Client              (Client, ClientM, HasClient (..))
 import           Servant.Server              (HasServer (..))
 import           Servant.Swagger.UI          (SwaggerSchemaUI)
-import           Servant.Client              (ClientM, Client, HasClient (..))
 
 import           Universum
 
 -------
-import           Pos.Client.Txp.Util        (InputSelectionPolicy)
-import           Pos.Types                  (Coin, SoftwareVersion)
-import           Pos.Util.Servant           (ApiLoggingConfig, CCapture, CQueryParam,
-                                             CReqBody, DCQueryParam, DReqBody,
-                                             HasLoggingServer (..), LoggingApi,
-                                             ModifiesApiRes (..), ReportDecodeError (..),
-                                             VerbMod, WithTruncatedLog (..),
-                                             applyLoggingToHandler, inRouteServer,
-                                             serverHandlerL')
-import           Pos.Wallet.Web.ClientTypes (Addr, CAccount, CAccountId, CAccountInit,
-                                             CAccountMeta, CAddress, CCoin, CFilePath, ClientInfo,
-                                             CId, CInitialized, CPaperVendWalletRedeem,
-                                             CPassPhrase, CProfile, CTx, CTxId, CTxMeta,
-                                             CUpdateInfo, CWallet, CWalletInit,
-                                             CWalletMeta, CWalletRedeem, ScrollLimit,
-                                             ScrollOffset, SyncProgress, Wal)
-import           Pos.Wallet.Web.Error       (WalletError (DecodeError),
-                                             catchEndpointErrors)
+import           Pos.Client.Txp.Util         (InputSelectionPolicy)
+import           Pos.Types                   (Coin, SoftwareVersion)
+import           Pos.Util.Servant            (ApiLoggingConfig, CCapture, CQueryParam,
+                                              CReqBody, DCQueryParam, DReqBody,
+                                              HasLoggingServer (..), LoggingApi,
+                                              ModifiesApiRes (..), ReportDecodeError (..),
+                                              VerbMod, WithTruncatedLog (..),
+                                              applyLoggingToHandler, inRouteServer,
+                                              serverHandlerL')
+import           Pos.Wallet.Web.ClientTypes  (Addr, CAccount, CAccountId, CAccountInit,
+                                              CAccountMeta, CAddress, CCoin, CFilePath,
+                                              CId, CInitialized, CPaperVendWalletRedeem,
+                                              CPassPhrase, CProfile, CTx, CTxId, CTxMeta,
+                                              CUpdateInfo, CWallet, CWalletInit,
+                                              CWalletMeta, CWalletRedeem, ClientInfo,
+                                              ScrollLimit, ScrollOffset, SyncProgress,
+                                              Wal)
+import           Pos.Wallet.Web.Error        (WalletError (DecodeError),
+                                              catchEndpointErrors)
 import           Pos.Wallet.Web.Methods.Misc (PendingTxsSummary, WalletStateSnapshot)
 
 -- | Common prefix for all endpoints.
@@ -134,15 +135,6 @@ instance ( HasServer (Verb mt st ct $ ApiModifiedRes WalletVerbTag a) ctx
             handler & serverHandlerL' %~ modifyApiResult (Proxy @WalletVerbTag)
                     & applyLoggingToHandler (Proxy @config) (Proxy @mt) . (paramsInfo, )
 
-
-
---instance (HasClient v) => HasClient (VerbMod mod v) where
---    type Client (VerbMod mod v) = Client v
---    clientWithRoute _ = clientWithRoute (Proxy @v)
-
-instance (HasClient v) => HasClient (WalletVerb v) where
-    type Client (WalletVerb v) = Client v
-    clientWithRoute _ = clientWithRoute (Proxy @v)
 
 -- | Specifes servant logging config.
 data WalletLoggingConfig
