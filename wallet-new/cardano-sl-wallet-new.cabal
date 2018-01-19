@@ -233,11 +233,13 @@ test-suite wallet-unit-tests
   if !os(windows)
     build-depends:    containers
                     , cardano-sl
+                    , cardano-sl-binary
                     , cardano-sl-block
                     , cardano-sl-client
                     , cardano-sl-core
                     , cardano-sl-crypto
                     , cardano-sl-db
+                    , cardano-sl-delegation
                     , cardano-sl-ssc
                     , cardano-sl-txp
                     , cardano-sl-update
@@ -245,6 +247,7 @@ test-suite wallet-unit-tests
                     , data-default
                     , ether
                     , formatting
+                    , hspec
                     , lens
                     , log-warper
                     , mtl

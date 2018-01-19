@@ -1,26 +1,27 @@
 module Main where
 
 import Universum
-import Formatting
-import Serokell.Util (listJson, pairF)
-import qualified Data.HashMap.Strict as HM
+import Formatting (format, build)
+import Test.Hspec
 
-import UTxO.Interpreter
+import UTxO.DSL
 import UTxO.Translate
+import UTxO.Interpreter
 
 main :: IO ()
-main = putStrLn $ runTranslate $ do
-    actors   <- generatedActors
-    leaders  <- genesisLeaders
-    stakes   <- genesisStakes
-    balances <- genesisBalances
-    liftPure $ format ( "{ actors: "  % build
-                      % ", leaders: " % listJson
-                      % ", stakes: " % listJson
-                      % ", balances: " % listJson
-                      % "}"
-                      )
-                      actors
-                      leaders
-                      (map (bprint pairF) (HM.toList stakes))
-                      (map (bprint pairF) balances)
+main = do
+    putStrLn $ runTranslate (getContext >>= \tc -> liftPure $ format build tc)
+    hspec tests
+
+tests :: Spec
+tests = describe "Wallet unit tests" $ do
+    testSanityChecks
+
+testSanityChecks :: Spec
+testSanityChecks = describe "Test sanity checks" $ do
+    it "can verify constructed empty block" $ do
+      runTranslate (int emptyBlock >>= verifyFromGenesis')
+        `shouldSatisfy` isRight
+  where
+    emptyBlock :: Chain Addr
+    emptyBlock = Chain [[]]

@@ -25,6 +25,7 @@ module UTxO.DSL (
   , balance
     -- * Additional types
   , Block(..)
+  , Chain(..)
   ) where
 
 import Universum
@@ -196,3 +197,11 @@ data Block sid a = Block {
     , blockSId   :: sid
     , blockTrans :: [Transaction a]
     }
+
+-- | A chain
+--
+-- A chain is just a series of blocks, here modelled simply as the transactions
+-- they contain, since the rest of the block information can then be inferred.
+data Chain a = Chain {
+    chainBlocks :: [[Transaction a]]
+  }
