@@ -7,10 +7,19 @@ module UTxO.Translate (
   , liftMaybe
     -- * Translation context (TODO: Cleanup)
   , Context(..)
+  , Actors(..)
+  , Rich(..)
+  , Poor(..)
+  , Stakeholder(..)
+  , DelegatedTo(..)
+  , KeyPair(..)
+  , EncKeyPair(..)
   , getContext
   , generatedActors
   , genesisBlock0
-  , getBlockKey
+  , getLeaderForSlot
+  , BlockSignInfo(..)
+  , getBlockSignInfo
     -- ** Pure functions on the translation context
   , Addr(..)
   , actorAddr
@@ -261,7 +270,13 @@ data Poor = Poor {
 
 data Stakeholder = Stakeholder {
       stkKey :: KeyPair
-    , stkDel :: Rich
+    , stkDel :: DelegatedTo Rich
+    }
+  deriving (Show)
+
+data DelegatedTo a = DelegatedTo {
+      delTo  :: a
+    , delPSK :: ProxySKHeavy
     }
   deriving (Show)
 
@@ -286,20 +301,38 @@ actorKey (AddrRich i)   Actors{..} = (kpSec  . richKey) (Map.elems actorsRich !!
 actorKey (AddrPoor i j) Actors{..} = (ekpSec . fst) (poorAddrs (Map.elems actorsPoor !! i) !! j)
 
 {-------------------------------------------------------------------------------
-  Extract data from the translation context
-
-  TODO: The translation context should be computed once and use a Reader, or
-  even a State, to keep track of the context.
+  Block signing info
 -------------------------------------------------------------------------------}
 
-getBlockKey :: SlotId -> Translate SecretKey
-getBlockKey slotId = do
-    leader     <- (NE.!! slotIx) <$> genesisLeaders
+getLeaderForSlot :: SlotId -> Translate Stakeholder
+getLeaderForSlot slotId = do
     Actors{..} <- generatedActors
-    return $ (kpSec . richKey) $ stkDel (actorsStake Map.! leader)
+    leader <- (NE.!! slotIx) <$> genesisLeaders
+    return $ actorsStake Map.! leader
   where
     slotIx :: Int
     slotIx = fromIntegral $ getSlotIndex (siSlot slotId)
+
+-- | Information needed to sign a block
+data BlockSignInfo = BlockSignInfo {
+      bsiLeader :: PublicKey    -- ^ Real slot leader
+    , bsiKey    :: SecretKey    -- ^ Secret key of the actor signing it
+    , bsiPSK    :: ProxySKHeavy -- ^ Prove that the actor may sign the block
+    }
+
+-- | 'BlockSignInfo' can be derived from the slot's 'Stakeholder'
+blockSignInfo :: Stakeholder -> BlockSignInfo
+blockSignInfo Stakeholder{..} = BlockSignInfo{..}
+  where
+    DelegatedTo{..} = stkDel
+    Rich{..}        = delTo
+
+    bsiLeader = kpPub stkKey
+    bsiKey    = kpSec richKey
+    bsiPSK    = delPSK
+
+getBlockSignInfo :: SlotId -> Translate BlockSignInfo
+getBlockSignInfo = fmap blockSignInfo . getLeaderForSlot
 
 {-------------------------------------------------------------------------------
   Get the translation context from the genesis block
@@ -386,17 +419,20 @@ generatedActors = do
         stkKey :: KeyPair
         stkKey = keyPair stkSec
 
-        stkDel :: Rich
-        stkDel = Map.findWithDefault
-                  (error ("generatedActors: delegate not found"))
-                  (pskDelegatePk psk)
-                  actorsRich
+        stkDel :: DelegatedTo Rich
+        stkDel = DelegatedTo{..}
 
-        psk :: ProxySKHeavy
-        psk = HM.lookupDefault
-                (error ("generatedActors: issuer not found"))
-                (kpHash stkKey)
-                (unGenesisDelegation del)
+        delTo :: Rich
+        delTo = Map.findWithDefault
+                     (error ("generatedActors: delegate not found"))
+                     (pskDelegatePk delPSK)
+                     actorsRich
+
+        delPSK :: ProxySKHeavy
+        delPSK = HM.lookupDefault
+                   (error ("generatedActors: issuer not found"))
+                   (kpHash stkKey)
+                   (unGenesisDelegation del)
 
 {-------------------------------------------------------------------------------
   Convenience function to verify blocks, starting from the genesis
@@ -491,6 +527,16 @@ instance Buildable Stakeholder where
       )
       stkKey
       stkDel
+
+instance Buildable a => Buildable (DelegatedTo a) where
+  build DelegatedTo{..} = bprint
+      ( "DelegatedTo"
+      % "{ to:  " % build
+      % ", psk: " % build
+      % "}"
+      )
+      delTo
+      delPSK
 
 instance Buildable Actors where
   build Actors{..} = bprint

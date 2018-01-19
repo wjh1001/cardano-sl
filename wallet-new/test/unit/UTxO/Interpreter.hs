@@ -117,15 +117,15 @@ instance Interpret (DSL.Block SlotId Addr) where
           Just block -> (Right . view gbHeader) <$> int block
           Nothing    -> (Left  . view gbHeader) <$> genesisBlock0
 
-      -- get block key from the slot leader
-      blockKey <- getBlockKey blockSId
+      -- figure out who needs to sign the block
+      BlockSignInfo{..} <- getBlockSignInfo blockSId
 
       lift $ createMainBlockPure
         blockSizeLimit
         prev
-        Nothing -- Delegation info
+        (Just (bsiPSK, bsiLeader))
         blockSId
-        blockKey
+        bsiKey
         (RawPayload
             blockTrans'
             (defaultSscPayload (siSlot blockSId))
