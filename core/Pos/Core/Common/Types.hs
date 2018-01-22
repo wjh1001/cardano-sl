@@ -63,7 +63,7 @@ import           Data.Data (Data)
 import           Data.Hashable (Hashable (..))
 import qualified Data.Semigroup (Semigroup (..))
 import qualified Data.Text.Buildable as Buildable
-import           Formatting (Format, bprint, build, formatToString, int, later, (%))
+import           Formatting (Format, bprint, build, sformat, int, later, (%))
 import qualified PlutusCore.Program as PLCore
 import           Serokell.Util (enumerate, listChunkedJson, pairBuilder)
 import           Serokell.Util.Base16 (formatBase16)
@@ -329,14 +329,14 @@ instance Bounded CoinPortion where
 -- | Make 'CoinPortion' from 'Word64' checking whether it is not greater
 -- than 'coinPortionDenominator'.
 mkCoinPortion
-    :: MonadFail m
+    :: MonadError Text m
     => Word64 -> m CoinPortion
 mkCoinPortion x
     | x <= coinPortionDenominator = pure $ CoinPortion x
-    | otherwise = fail err
+    | otherwise = throwError err
   where
     err =
-        formatToString
+        sformat
             ("mkCoinPortion: value is greater than coinPortionDenominator: "
             %int) x
 

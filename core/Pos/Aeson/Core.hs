@@ -106,7 +106,7 @@ instance FromJSON ApplicationName where
     --
     -- FIXME does the defaultOptions derived JSON encode directly as text? Or
     -- as an object with a single key?
-    parseJSON v = parseJSON v >>= mkApplicationName
+    parseJSON v = parseJSON v >>= toAesonError . mkApplicationName
 
 deriveToJSON defaultOptions ''ApplicationName
 

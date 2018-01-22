@@ -8,6 +8,7 @@ import           Universum
 
 import           Data.Fixed (Fixed (..))
 import qualified Data.HashMap.Strict as HM
+import qualified Data.Text as T
 import           Data.Time.Units (Millisecond, Second, convertUnit)
 import           Data.Typeable (typeRep)
 import           Formatting (formatToString)
@@ -46,7 +47,7 @@ import           Pos.Crypto.Configuration (ProtocolMagic (..))
 -- Primitive standard/3rdparty types
 ----------------------------------------------------------------------------
 
-instance (Monad m, Applicative m, MonadFail m) => ReportSchemaErrors m where
+instance (Monad m, MonadFail m, Applicative m) => ReportSchemaErrors m where
     expected expec got = fail $ mconcat
         [ "expected "
         , expec
@@ -367,7 +368,7 @@ instance ReportSchemaErrors m => FromJSON m Coin where
 instance ReportSchemaErrors m => FromJSON m CoinPortion where
     fromJSON val = do
         number <- fromJSON val
-        wrapConstructor @String $ mkCoinPortion number
+        wrapConstructor @Text $ mkCoinPortion number
 
 instance ReportSchemaErrors m => FromJSON m Timestamp where
     fromJSON =

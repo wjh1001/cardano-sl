@@ -21,12 +21,13 @@ import qualified Pos.Core.Update as U
 import           Pos.Core.Update.Types (BlockVersion, BlockVersionData (..), SoftforkRule (..),
                                         SoftwareVersion)
 import           Pos.Crypto (Hash)
+import           Pos.Util.Util (toCborError)
 
 instance Bi U.ApplicationName where
     encode appName = encode (U.getApplicationName appName)
     decode = do
         appName <- decode
-        U.mkApplicationName appName
+        toCborError $ U.mkApplicationName appName
 
 deriveSimpleBi ''U.BlockVersion [
     Cons 'U.BlockVersion [
@@ -86,9 +87,9 @@ deriveSimpleBi ''U.BlockVersionModifier [
 
 instance Bi U.SystemTag where
     encode = encode . U.getSystemTag
-    decode = decode >>= \decoded -> case U.mkSystemTag decoded of
-        Left e   -> fail e
-        Right st -> pure st
+    decode = do
+        it <- decode
+        toCborError $ U.mkSystemTag it
 
 deriveSimpleBi ''U.UpdateData [
     Cons 'U.UpdateData [

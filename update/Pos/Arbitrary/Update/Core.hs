@@ -29,7 +29,7 @@ instance Arbitrary BlockVersionModifier where
 instance Arbitrary SystemTag where
     arbitrary =
         oneof $
-        map (pure . fromMaybe onFail) [mkSystemTag "win64", mkSystemTag "mac32"]
+        map (either onFail pure) [mkSystemTag "win64", mkSystemTag "mac32"]
       where
         onFail = error "instance Arbitrary SystemTag: disaster"
     shrink = genericShrink

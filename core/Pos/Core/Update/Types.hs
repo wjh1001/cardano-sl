@@ -42,6 +42,7 @@ module Pos.Core.Update.Types
 
 import           Universum
 
+import           Control.Monad.Except (MonadError (throwError))
 import           Data.Char (isAscii)
 import           Data.Default (Default (..))
 import           Data.Hashable (Hashable)
@@ -81,12 +82,12 @@ newtype ApplicationName = ApplicationName
     } deriving (Eq, Ord, Show, Generic, Typeable, ToString, Hashable, Buildable, NFData)
 
 -- | Smart constructor of 'ApplicationName'.
-mkApplicationName :: MonadFail m => Text -> m ApplicationName
+mkApplicationName :: MonadError Text m => Text -> m ApplicationName
 mkApplicationName appName
     | length appName > applicationNameMaxLength =
-        fail "ApplicationName: too long string passed"
+        throwError "ApplicationName: too long string passed"
     | T.any (not . isAscii) appName =
-        fail "ApplicationName: not ascii string passed"
+        throwError "ApplicationName: not ascii string passed"
     | otherwise = pure $ ApplicationName appName
 
 applicationNameMaxLength :: Integral i => i
@@ -288,11 +289,11 @@ newtype SystemTag = SystemTag { getSystemTag :: Text }
 systemTagMaxLength :: Integral i => i
 systemTagMaxLength = 10
 
-mkSystemTag :: MonadFail m => Text -> m SystemTag
+mkSystemTag :: MonadError Text m => Text -> m SystemTag
 mkSystemTag tag | T.length tag > systemTagMaxLength
-                    = fail "SystemTag: too long string passed"
+                    = throwError "SystemTag: too long string passed"
                 | T.any (not . isAscii) tag
-                    = fail "SystemTag: not ascii string passed"
+                    = throwError "SystemTag: not ascii string passed"
                 | otherwise
                     = pure $ SystemTag tag
 
