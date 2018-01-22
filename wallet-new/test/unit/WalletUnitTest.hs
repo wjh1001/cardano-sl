@@ -32,6 +32,8 @@ testSanityChecks = describe "Test sanity checks" $ do
 
     -- TODO: We need access to the "bootstrap transaction".
     -- TODO: We also need to make the rest available!
+    -- TODO: We should also sanity check that the translations are valid
+    -- according to the DSL definition of validity.
     t1 :: Transaction Addr
     t1 = Transaction {
              trIns  = []
