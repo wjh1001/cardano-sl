@@ -19,9 +19,24 @@ tests = describe "Wallet unit tests" $ do
 
 testSanityChecks :: Spec
 testSanityChecks = describe "Test sanity checks" $ do
-    it "can verify constructed empty block" $ do
+    it "can construct and verify empty block" $ do
       runTranslate (int emptyBlock >>= verifyFromGenesis')
+        `shouldSatisfy` isRight
+
+    it "can construct and verify block with one transaction" $
+      runTranslate (int oneTrans >>= verifyFromGenesis')
         `shouldSatisfy` isRight
   where
     emptyBlock :: Chain Addr
     emptyBlock = Chain [[]]
+
+    -- TODO: We need access to the "bootstrap transaction".
+    -- TODO: We also need to make the rest available!
+    t1 :: Transaction Addr
+    t1 = Transaction {
+             trIns  = []
+           , trOuts = [Output (AddrOrdinary (IxRich 2, 0)) 10]
+           }
+
+    oneTrans :: Chain Addr
+    oneTrans = Chain [[t1]]

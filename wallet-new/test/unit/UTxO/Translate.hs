@@ -20,10 +20,14 @@ module UTxO.Translate (
   , getLeaderForSlot
   , BlockSignInfo(..)
   , getBlockSignInfo
-    -- ** Pure functions on the translation context
-  , Addr(..)
+    -- * Uniform API to rich and poor actors
+  , RegularActor(..)
+  , ActorIx(..)
+  , AddrIx
+  , Addr
+  , actorWithIx
   , actorAddr
-  , actorKey
+  , resolveAddr
     -- * Interface to the verifier
   , verifyFromGenesis
   , verifyFromGenesis'
@@ -281,24 +285,39 @@ data DelegatedTo a = DelegatedTo {
   deriving (Show)
 
 {-------------------------------------------------------------------------------
-  Pure functions on the translation context
+  In many cases the difference between rich and poor actors is not important
 -------------------------------------------------------------------------------}
 
-data Addr =
-      -- | Rich actors only have a single (non-HD) address
-      AddrRich Int
+-- | Rich or poor actr, but not a stakeholder
+data RegularActor = ActorRich Rich | ActorPoor Poor
 
-      -- | Poor actors however have a number of addresses (in principle, in
-      -- practice currently only one)
-    | AddrPoor Int Int
+-- | Index the actors by number
+data ActorIx = IxRich Int | IxPoor Int
 
-actorAddr :: Addr -> Actors -> Address
-actorAddr (AddrRich i)   Actors{..} = richAddr (Map.elems actorsRich !! i)
-actorAddr (AddrPoor i j) Actors{..} = snd (poorAddrs (Map.elems actorsPoor !! i) !! j)
+actorWithIx :: ActorIx -> Actors -> RegularActor
+actorWithIx (IxRich i) Actors{..} = ActorRich $ Map.elems actorsRich !! i
+actorWithIx (IxPoor i) Actors{..} = ActorPoor $ Map.elems actorsPoor !! i
 
-actorKey :: Addr -> Actors -> SecretKey
-actorKey (AddrRich i)   Actors{..} = (kpSec  . richKey) (Map.elems actorsRich !! i)
-actorKey (AddrPoor i j) Actors{..} = (ekpSec . fst) (poorAddrs (Map.elems actorsPoor !! i) !! j)
+-- | Address index of a regular actor
+--
+-- We don't track the difference between rich and poor actors at the type
+-- level to make things a bit more uniform.
+type AddrIx = Int
+
+actorAddr :: AddrIx -> RegularActor -> (KeyPair, Address)
+actorAddr ix (ActorRich Rich{..}) =
+    if ix == 0
+      then (richKey, richAddr)
+      else error "actorAddr: rich actors have single address"
+actorAddr ix (ActorPoor Poor{..}) =
+    if ix < length poorAddrs
+      then first fromEncKeyPair (poorAddrs !! ix)
+      else error "actorAddr: address index out of bounds"
+
+type Addr = (ActorIx, AddrIx)
+
+resolveAddr :: Addr -> Actors -> (KeyPair, Address)
+resolveAddr (actorIx, addrIx) = actorAddr addrIx . actorWithIx actorIx
 
 {-------------------------------------------------------------------------------
   Block signing info
@@ -493,6 +512,13 @@ encKeyPair ekpEnc = EncKeyPair {..}
     ekpSec  = encToSecret ekpEnc
     ekpPub  = encToPublic ekpEnc
     ekpHash = addressHash ekpPub
+
+fromEncKeyPair :: EncKeyPair -> KeyPair
+fromEncKeyPair EncKeyPair{..} = KeyPair{..}
+  where
+    kpSec  = ekpSec
+    kpPub  = ekpPub
+    kpHash = ekpHash
 
 {-------------------------------------------------------------------------------
   Pretty-printing
