@@ -15,6 +15,7 @@ module Test.Pos.Cbor.CborSpec
 import           Universum
 
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Lazy as LBS
 import           Test.Hspec (Arg, Expectation, Spec, SpecWith, describe, it, pendingWith, shouldBe)
 import           Test.Hspec.QuickCheck (modifyMaxSize, modifyMaxSuccess, prop)
 import           Test.QuickCheck
@@ -138,7 +139,7 @@ deriveSimpleBi ''MyScript [
 data U = U Word8 BS.ByteString deriving (Show, Eq)
 
 instance Bi U where
-    encode (U word8 bs) = encodeListLen 2 <> encode (word8 :: Word8) <> encodeUnknownCborDataItem bs
+    encode (U word8 bs) = encodeListLen 2 <> encode (word8 :: Word8) <> encodeUnknownCborDataItem (LBS.fromStrict bs)
     decode = do
         decodeListLenCanonicalOf 2
         U <$> decode <*> decodeUnknownCborDataItem
@@ -150,7 +151,7 @@ instance Arbitrary U where
 data U24 = U24 Word8 BS.ByteString deriving (Show, Eq)
 
 instance Bi U24 where
-    encode (U24 word8 bs) = encodeListLen 2 <> encode (word8 :: Word8) <> encodeUnknownCborDataItem bs
+    encode (U24 word8 bs) = encodeListLen 2 <> encode (word8 :: Word8) <> encodeUnknownCborDataItem (LBS.fromStrict bs)
     decode = do
         decodeListLenCanonicalOf 2
         U24 <$> decode <*> decodeUnknownCborDataItem
@@ -172,16 +173,16 @@ instance Arbitrary X2 where
     shrink = genericShrink
 
 instance Bi (Attributes X1) where
-    encode = encodeAttributes [(0, serialize' . x1A)]
+    encode = encodeAttributes [(0, serialize . x1A)]
     decode = decodeAttributes (X1 0) $ \n v acc -> case n of
-        0 -> pure $ Just $ acc { x1A = unsafeDeserialize' v }
+        0 -> pure $ Just $ acc { x1A = unsafeDeserialize v }
         _ -> pure $ Nothing
 
 instance Bi (Attributes X2) where
-    encode = encodeAttributes [(0, serialize' . x2A), (1, serialize' . x2B)]
+    encode = encodeAttributes [(0, serialize . x2A), (1, serialize . x2B)]
     decode = decodeAttributes (X2 0 []) $ \n v acc -> case n of
-        0 -> return $ Just $ acc { x2A = unsafeDeserialize' v }
-        1 -> return $ Just $ acc { x2B = unsafeDeserialize' v }
+        0 -> return $ Just $ acc { x2A = unsafeDeserialize v }
+        1 -> return $ Just $ acc { x2B = unsafeDeserialize v }
         _ -> return $ Nothing
 
 ----------------------------------------
