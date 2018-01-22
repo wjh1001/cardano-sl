@@ -7,7 +7,7 @@ module Pos.Core.Ssc.Vss
        , VssCertificatesMap (..)
        -- * Certificates
        , mkVssCertificate
-       , recreateVssCertificate
+       , checkVssCertificate
        , checkCertSign
        , getCertId
 
@@ -52,26 +52,14 @@ mkVssCertificate sk vk expiry =
   where
     signature = sign SignVssCert sk (vk, expiry)
 
--- | Recreate 'VssCertificate' from its contents. This function main
+-- | Recreate 'VssCertificate' from its contents. This function may
 -- 'fail' if data is invalid.
-recreateVssCertificate
+checkVssCertificate
     :: (HasCryptoConfiguration, Bi EpochIndex, MonadFail m)
-    => AsBinary VssPublicKey
-    -> EpochIndex
-    -> Signature (AsBinary VssPublicKey, EpochIndex)
-    -> PublicKey
+    => VssCertificate
     -> m VssCertificate
-recreateVssCertificate vssKey epoch sig pk =
-    res <$
-    (unless (checkCertSign res) $ fail "recreateVssCertificate: invalid sign")
-  where
-    res =
-        UnsafeVssCertificate
-        { vcVssKey = vssKey
-        , vcExpiryEpoch = epoch
-        , vcSignature = sig
-        , vcSigningKey = pk
-        }
+checkVssCertificate it =
+    it <$ (unless (checkCertSign it) $ fail "checkVssCertificate: invalid sign")
 
 -- CHECK: @checkCertSign
 -- | Check that the VSS certificate is signed properly
