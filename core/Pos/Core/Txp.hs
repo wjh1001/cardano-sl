@@ -21,7 +21,7 @@ module Pos.Core.Txp
        -- * Tx
        , Tx (..)
        , TxAux (..)
-       , mkTx
+       , checkTx
        , txInputs
        , txOutputs
        , txAttributes
@@ -224,17 +224,18 @@ instance Bi Tx => Buildable TxAux where
 
 -- | Create valid Tx or fail.
 -- Verify inputs and outputs are non empty; have enough coins.
-mkTx
+checkTx
     :: MonadFail m
-    => NonEmpty TxIn -> NonEmpty TxOut -> TxAttributes -> m Tx
-mkTx inputs outputs attrs =
+    => Tx
+    -> m Tx
+checkTx it =
     case verRes of
-        VerSuccess -> pure $ UnsafeTx inputs outputs attrs
+        VerSuccess -> pure it
         failure    -> fail $ formatToString verResSingleF failure
   where
     verRes =
         verifyGeneric $
-        concat $ zipWith outputPredicates [0 ..] $ toList outputs
+        concat $ zipWith outputPredicates [0 ..] $ toList (_txOutputs it)
     outputPredicates (i :: Word) TxOut {..} =
         [ ( txOutValue > mkCoin 0
           , sformat
@@ -292,7 +293,7 @@ makeLenses ''TxPayload
 --
 -- Currently there is only one invariant:
 -- • number of txs must be same as number of witnesses.
-mkTxPayload :: (Bi Tx) => [TxAux] -> TxPayload
+mkTxPayload :: [TxAux] -> TxPayload
 mkTxPayload txws = do
     UnsafeTxPayload {..}
   where
