@@ -33,6 +33,7 @@ module Pos.Core.Txp
        , mkTxProof
        , TxPayload (..)
        , mkTxPayload
+       , checkTxPayload
        , txpTxs
        , txpWitnesses
 
@@ -301,6 +302,9 @@ mkTxPayload txws = do
     (txs, _txpWitnesses) =
             unzip . map (liftA2 (,) taTx taWitness) $ txws
     _txpTxs = txs
+
+checkTxPayload :: MonadError Text m => TxPayload -> m TxPayload
+checkTxPayload it = it <$ forM (_txpTxs it) checkTx
 
 -- | Construct a merkle tree from the transactions in a 'TxPayload'
 -- Use with care; this can be very expensive.
